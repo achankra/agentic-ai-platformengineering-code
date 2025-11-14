@@ -1,0 +1,380 @@
+name: AI-Enhanced CI/CD Pipeline
+# Complete pipeline with release readiness evaluation
+
+on:
+  pull_request:
+    branches: [main, staging, production]
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Job 1: Build and Test
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-json-report
+      
+      - name: Run tests with coverage
+        run: |
+          pytest \
+            --cov=src \
+            --cov-report=json \
+            --cov-report=html \
+            --json-report \
+            --json-report-file=test-results.json \
+            tests/
+      
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.json
+            htmlcov/
+            test-results.json
+
+  # Job 2: Performance Testing
+  performance-test:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install locust pytest-benchmark
+      
+      - name: Run performance tests
+        run: |
+          python tests/performance/benchmark_suite.py \
+            --output performance-results.json
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: performance-results.json
+
+  # Job 3: Security Scanning
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'trivy-results.json'
+      
+      - name: Run Safety check (Python dependencies)
+        run: |
+          pip install safety
+          safety check --json --output safety-results.json || true
+      
+      - name: Run Bandit (Python security linter)
+        run: |
+          pip install bandit
+          bandit -r src/ -f json -o bandit-results.json || true
+      
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-results
+          path: |
+            trivy-results.json
+            safety-results.json
+            bandit-results.json
+
+  # Job 4: Code Quality Analysis
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install analysis tools
+        run: |
+          pip install radon pylint flake8
+      
+      - name: Run complexity analysis
+        run: |
+          radon cc src/ -a --json > complexity-results.json
+          radon mi src/ --json > maintainability-results.json
+      
+      - name: Run linting
+        run: |
+          pylint src/ --output-format=json > pylint-results.json || true
+          flake8 src/ --format=json --output-file=flake8-results.json || true
+      
+      - name: Upload quality results
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-results
+          path: |
+            complexity-results.json
+            maintainability-results.json
+            pylint-results.json
+            flake8-results.json
+
+  # Job 5: AI Release Evaluation
+  ai-release-evaluation:
+    name: AI Release Readiness Evaluation
+    runs-on: ubuntu-latest
+    needs: [build-and-test, performance-test, security-scan, code-quality]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install agent dependencies
+        run: |
+          pip install anthropic pyyaml
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Run Release Readiness Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python section2_release_agent.py \
+            --config examples/quality-gates.yml \
+            --coverage artifacts/coverage-reports/coverage.json \
+            --performance artifacts/performance-results/performance-results.json \
+            --security artifacts/security-results/ \
+            --quality artifacts/quality-results/ \
+            --output release-decision.md
+      
+      - name: Parse release decision
+        id: decision
+        run: |
+          # Extract decision from markdown
+          DECISION=$(grep -m 1 "Release Decision:" release-decision.md | cut -d: -f2 | tr -d ' ')
+          echo "decision=$DECISION" >> $GITHUB_OUTPUT
+          echo "Release Decision: $DECISION"
+      
+      - name: Comment on PR with decision
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const decision = fs.readFileSync('release-decision.md', 'utf8');
+            
+            // Create or update comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('## 🤖 AI Release Readiness Evaluation')
+            );
+            
+            const body = `## 🤖 AI Release Readiness Evaluation\n\n${decision}`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+      
+      - name: Upload release decision
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-decision
+          path: release-decision.md
+      
+      - name: Check if deployment approved
+        if: steps.decision.outputs.decision != 'APPROVE' && steps.decision.outputs.decision != 'APPROVE_WITH_MONITORING'
+        run: |
+          echo "❌ Release not approved by AI agent"
+          echo "Decision: ${{ steps.decision.outputs.decision }}"
+          exit 1
+
+  # Job 6: Deploy to Staging (if approved)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: ai-release-evaluation
+    if: github.ref == 'refs/heads/main' && success()
+    environment:
+      name: staging
+      url: https://staging.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging..."
+          # Your deployment commands here
+          # kubectl apply -f k8s/staging/
+          # or helm upgrade staging ./charts/app
+      
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          # Your smoke test commands
+          # pytest tests/smoke/
+      
+      - name: Notify deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Staging deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 7: Canary Deployment to Production
+  deploy-production-canary:
+    name: Deploy Production Canary
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://www.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy canary (5% traffic)
+        run: |
+          echo "🐤 Deploying canary to production..."
+          # Deploy with 5% traffic
+          # kubectl apply -f k8s/production/canary.yml
+      
+      - name: Monitor canary for 10 minutes
+        run: |
+          echo "👀 Monitoring canary deployment..."
+          sleep 600  # 10 minutes
+      
+      - name: Evaluate canary metrics
+        id: canary-check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Fetch metrics from monitoring system
+          # Run AI evaluation of canary metrics
+          python scripts/evaluate_canary.py \
+            --duration 10m \
+            --output canary-evaluation.json
+          
+          # Parse result
+          CANARY_STATUS=$(jq -r '.status' canary-evaluation.json)
+          echo "status=$CANARY_STATUS" >> $GITHUB_OUTPUT
+      
+      - name: Rollback canary if unhealthy
+        if: steps.canary-check.outputs.status == 'unhealthy'
+        run: |
+          echo "⚠️  Canary unhealthy, rolling back..."
+          # kubectl delete -f k8s/production/canary.yml
+          exit 1
+      
+      - name: Promote canary to full deployment
+        if: steps.canary-check.outputs.status == 'healthy'
+        run: |
+          echo "✅ Canary healthy, promoting to full deployment..."
+          # Gradually increase traffic: 5% -> 25% -> 50% -> 100%
+          # kubectl apply -f k8s/production/full-deployment.yml
+
+  # Job 8: Post-Deployment Monitoring
+  post-deployment-monitoring:
+    name: Post-Deployment Analysis
+    runs-on: ubuntu-latest
+    needs: deploy-production-canary
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Collect deployment metrics
+        run: |
+          echo "📊 Collecting post-deployment metrics..."
+          # Collect metrics from last 30 minutes
+          # python scripts/collect_metrics.py --duration 30m
+      
+      - name: Generate deployment report
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "📝 Generating AI deployment report..."
+          python scripts/generate_deployment_report.py \
+            --output deployment-report.md
+      
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report
+          path: deployment-report.md
+      
+      - name: Send summary to Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment completed!
+            See full report in artifacts.
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

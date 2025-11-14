@@ -1,0 +1,112 @@
+# Quality Gates Configuration
+# Used by Section 2: Release Readiness Agent
+
+quality_gates:
+  # Test Coverage Requirements
+  coverage:
+    minimum_line_coverage: 80.0
+    minimum_branch_coverage: 75.0
+    severity: critical
+    description: "Ensures adequate test coverage before deployment"
+    
+  # Performance Requirements  
+  performance:
+    p50_latency_increase_max: 5.0    # 5% max increase
+    p95_latency_increase_max: 10.0   # 10% max increase
+    p99_latency_increase_max: 15.0   # 15% max increase
+    throughput_decrease_max: 5.0     # 5% max decrease
+    severity: high
+    description: "Prevents performance regressions"
+    
+  # Security Requirements
+  security:
+    critical_vulnerabilities_max: 0
+    high_vulnerabilities_max: 5
+    medium_vulnerabilities_max: 20
+    severity: critical
+    description: "Enforces security standards"
+    blockers:
+      - "CVE with CVSS score >= 9.0"
+      - "Known exploits in production dependencies"
+      - "Credentials in source code"
+    
+  # Code Quality Requirements
+  complexity:
+    max_cyclomatic_complexity: 10
+    max_function_length: 50
+    max_file_length: 500
+    severity: medium
+    description: "Maintains code maintainability"
+    
+  # Deployment Requirements
+  deployment:
+    rollback_time_max_minutes: 5
+    canary_duration_min_minutes: 30
+    severity: medium
+    description: "Ensures safe deployment practices"
+
+# Release Decision Matrix
+# Determines automatic vs manual approval based on gate results
+
+decision_matrix:
+  auto_approve:
+    - "All critical gates pass"
+    - "All high gates pass"
+    - "At most 2 medium gates fail"
+    
+  approve_with_monitoring:
+    - "All critical gates pass"
+    - "At most 1 high gate fails"
+    - "Manual review required for high gate failures"
+    
+  manual_review:
+    - "Any high gate fails"
+    - "More than 2 medium gates fail"
+    
+  reject:
+    - "Any critical gate fails"
+
+# Notification Configuration
+notifications:
+  slack_webhook: "${SLACK_WEBHOOK_URL}"
+  email_recipients:
+    - "platform-team@example.com"
+    - "on-call@example.com"
+  
+  alert_on:
+    - "Any critical gate failure"
+    - "Release rejected"
+    - "Performance degradation detected"
+
+# Rollback Triggers
+# Automatic rollback conditions during canary deployment
+rollback_triggers:
+  error_rate_threshold: 0.5        # 0.5% error rate
+  latency_p95_threshold: 12.0      # 12% increase
+  availability_threshold: 99.9     # 99.9% availability
+  
+  evaluation_window_minutes: 10
+  consecutive_failures_max: 3
+
+# Historical Baseline
+# Used for performance comparison
+baseline:
+  lookback_days: 7
+  minimum_samples: 100
+  percentile: 95
+
+# Agent Configuration
+agent:
+  model: "claude-sonnet-4-20250514"
+  max_tokens: 2000
+  temperature: 0.2
+  
+  prompt_template: |
+    Evaluate the following release against quality gates.
+    Be thorough but concise. Focus on actionable insights.
+    
+    Consider:
+    - Impact on users if deployment proceeds
+    - Risk of regression or downtime
+    - Compliance with organizational standards
+    - Historical comparison with previous releases
