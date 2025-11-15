@@ -1,4 +1,4 @@
-# Agentic AI in Platform Engineering - Workshop
+# Agentic AI in Platform Engineering - Pearson Live Training
 
 A comprehensive workshop repository for learning how to integrate AI agents into platform engineering workflows. This workshop provides hands-on exercises aligned with the 5-segment O'Reilly/Pearson live training course.
 
@@ -193,10 +193,11 @@ outputs/
 
 ## 🎓 Learning Resources
 
-- [Effective Platform Engineering Book](https://example.com/book)
+- [Effective Platform Engineering Book](https://effectiveplatformengineering.com)
 - [Workshop Slides](./slides/)
-- [Video Tutorials](https://example.com/videos)
-- [Community Forum](https://example.com/forum)
+- [Video Tutorials](oreilly.com/live-events/agentic-ai-in-platform-engineering/0642572268862/)
+- [Community Forum](https://discord.gg/)
+- [Online Demos](https://agentic-pe.platformetrics.com)
 
 ## 🤝 Contributing
 
