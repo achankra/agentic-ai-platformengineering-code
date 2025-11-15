@@ -42,7 +42,7 @@ cp .env.example .env
 ## 📚 Workshop Segments
 
 ### Segment 1: AI-Powered Diagnostics
-**Time:** 45 minutes | **Difficulty:** ⭐⭐
+
 
 Learn to build diagnostic agents that analyze failing CI/CD pipelines and provide actionable fixes.
 
@@ -61,7 +61,7 @@ python exercises/ex1_diagnostic_agent.py logs/sample_failure.log
 - Integration with GitHub Actions
 
 ### Segment 2: AI-Enhanced CI/CD Pipelines
-**Time:** 45 minutes | **Difficulty:** ⭐⭐⭐
+
 
 Implement intelligent quality gates that make release/rollback decisions based on multiple metrics.
 
@@ -80,7 +80,7 @@ python exercises/ex2_quality_gates.py --decide
 - Automated rollback triggers
 
 ### Segment 3: Operational Intelligence
-**Time:** 45 minutes | **Difficulty:** ⭐⭐⭐⭐
+
 
 Build multi-agent systems for cost optimization and incident response.
 
@@ -99,7 +99,7 @@ python exercises/ex3_multi_agent.py --scenario incident-response
 - Observability integration
 
 ### Segment 4: Self-Service Developer Experience
-**Time:** 45 minutes | **Difficulty:** ⭐⭐⭐
+
 
 Create AI-powered developer portals that provide personalized onboarding and recommendations.
 
@@ -118,7 +118,7 @@ python exercises/ex4_developer_portal.py --assess maturity
 - Developer productivity metrics
 
 ### Segment 5: Starter Kits & Templates
-**Time:** 45 minutes | **Difficulty:** ⭐⭐
+
 
 Build reusable templates with AI-generated documentation and configuration.
 
