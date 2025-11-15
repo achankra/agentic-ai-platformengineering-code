@@ -1,0 +1,46 @@
+Run python -m pytest tests/
+============================= test session starts ==============================
+platform linux -- Python 3.11.0, pytest-8.0.0, pluggy-1.0.0
+rootdir: /home/runner/work/payment-service/payment-service
+collected 15 items
+
+tests/test_api.py ....F                                                    [ 33%]
+tests/test_database.py .....                                               [ 66%]
+tests/test_utils.py .....                                                  [100%]
+
+=================================== FAILURES ===================================
+_________________________________ test_payment_processing _________________________________
+
+    def test_payment_processing():
+        """Test payment processing endpoint"""
+        client = TestClient(app)
+        
+        payment_data = {
+            "amount": 100.00,
+            "currency": "USD",
+            "card_number": "4111111111111111",
+            "cvv": "123"
+        }
+        
+        response = client.post("/api/v1/payments", json=payment_data)
+>       assert response.status_code == 200
+E       AssertionError: assert 500 == 200
+E        +  where 500 = <Response [500]>.status_code
+
+tests/test_api.py:45: AssertionError
+----------------------------- Captured stderr call -----------------------------
+ERROR:root:Database connection failed: Connection to database timed out after 30.0 seconds
+ERROR:root:Payment processing failed: Database unavailable
+ERROR:root:Traceback (most recent call last):
+  File "/app/src/services/payment_service.py", line 234, in process_payment
+    transaction = await db.transactions.create(payment_data)
+  File "/app/src/database/models.py", line 89, in create
+    async with self.get_connection() as conn:
+  File "/app/src/database/connection.py", line 45, in get_connection
+    raise DatabaseConnectionError("Connection pool exhausted")
+DatabaseConnectionError: Connection pool exhausted
+
+=========================== short test summary info ============================
+FAILED tests/test_api.py::test_payment_processing - AssertionError: assert 500 == 200
+========================= 1 failed, 14 passed in 12.34s =========================
+Error: Process completed with exit code 1.
