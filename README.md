@@ -17,7 +17,7 @@ A comprehensive workshop repository for learning how to integrate AI agents into
 - Python 3.10+ (3.11 recommended)
 - GitHub account
 - Docker (optional, for containerized execution)
-- Anthropic API key (optional - mock mode available!)
+- Anthropic API key [Get it here](https://console.anthropic.com/login) (optional - mock mode available!)
 
 ### Installation
 
